@@ -111,7 +111,7 @@ export default function AdminDashboard() {
             }
         } catch (error) {
             console.error(error);
-            // router.push("/admin"); // Don't redirect on error, just log
+            router.push("/admin");
         } finally {
             setInitialLoading(false);
             setFetching(false);
@@ -119,6 +119,11 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            router.push("/admin");
+            return;
+        }
         fetchData();
     }, [activeTab, selectedBranch, sortOrder, page]);
 
