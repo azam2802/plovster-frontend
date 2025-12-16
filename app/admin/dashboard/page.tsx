@@ -16,11 +16,12 @@ import {
 } from "@/components/ui/select";
 import {
     Loader2, RefreshCw, Plus, Trash2, Building2, Users, LogOut,
-    LayoutDashboard, MessageSquare, Search, Filter, ChevronDown, CheckCircle, AlertCircle, User as UserIcon,
-    Eye, X, Menu, Save
+    MessageSquare, User as UserIcon,
+    Eye, X, Menu, Save, Download, EyeOff
 } from "lucide-react";
 import AnimatedBackground from "@/components/ui/AnimatedBackground";
 import { Textarea } from "@/components/ui/textarea";
+import * as XLSX from 'xlsx';
 
 interface Complaint {
     id: string;
@@ -74,12 +75,87 @@ export default function AdminDashboard() {
     // User form state
     const [newUsername, setNewUsername] = useState("");
     const [newPassword, setNewPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [newUserRole, setNewUserRole] = useState<'admin' | 'manager'>('manager');
     const [userSubmitting, setUserSubmitting] = useState(false);
 
     // Operation loading states
     const [statusUpdating, setStatusUpdating] = useState(false);
     const [commentSaving, setCommentSaving] = useState(false);
+
+    // Export state
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+    const [exportLoading, setExportLoading] = useState(false);
+    const [exportFilters, setExportFilters] = useState({
+        dateFrom: "",
+        dateTo: "",
+        statuses: [] as string[],
+        minRating: "",
+        maxRating: ""
+    });
+
+    const handleExportClick = () => {
+        setIsExportModalOpen(true);
+    };
+
+    const performExport = async () => {
+        setExportLoading(true);
+        try {
+            const params: any = { limit: 10000 }; // Fetch all
+            // We fetch all and filter on client side to support complex filters not yet in backend
+            if (selectedBranch !== "all") params.branch = selectedBranch;
+            
+            const response = await api.get("/complaints", { params });
+            let filteredComplaints = response.data.data;
+
+            // Apply client-side filters
+            if (exportFilters.dateFrom) {
+                const fromDate = new Date(exportFilters.dateFrom);
+                filteredComplaints = filteredComplaints.filter((c: Complaint) => new Date(c.createdAt) >= fromDate);
+            }
+            if (exportFilters.dateTo) {
+                const toDate = new Date(exportFilters.dateTo);
+                // Set to end of day
+                toDate.setHours(23, 59, 59, 999);
+                filteredComplaints = filteredComplaints.filter((c: Complaint) => new Date(c.createdAt) <= toDate);
+            }
+            if (exportFilters.statuses.length > 0) {
+                filteredComplaints = filteredComplaints.filter((c: Complaint) => exportFilters.statuses.includes(c.status));
+            }
+            if (exportFilters.minRating) {
+                filteredComplaints = filteredComplaints.filter((c: Complaint) => (c.rating || 0) >= Number(exportFilters.minRating));
+            }
+            if (exportFilters.maxRating) {
+                filteredComplaints = filteredComplaints.filter((c: Complaint) => (c.rating || 0) <= Number(exportFilters.maxRating));
+            }
+
+            const worksheet = XLSX.utils.json_to_sheet(filteredComplaints.map((c: Complaint) => ({
+                'Дата': new Date(c.createdAt).toLocaleDateString(),
+                'ФИО': c.fullName,
+                'Филиал': c.branch,
+                'Проблема': c.problem,
+                'Решение': c.solution || '-',
+                'Контакты': c.contact || '-',
+                'Оценка': c.rating || '-',
+                'Статус': c.status === 'Solved' ? 'Решено' : c.status === 'In progress' ? 'В работе' : 'Новое',
+                'Комментарий админа': c.adminComment || '-'
+            })));
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Complaints");
+            
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+            XLSX.writeFile(workbook, `complaints_report_${timestamp}.xlsx`);
+            
+            setIsExportModalOpen(false);
+        } catch (error) {
+            console.error("Export failed", error);
+            alert("Ошибка при экспорте в Excel");
+        } finally {
+            setExportLoading(false);
+        }
+    };
 
     const fetchData = async () => {
         setFetching(true);
@@ -351,6 +427,17 @@ export default function AdminDashboard() {
                             </h2>
                             <p className="text-gray-500">Обзор и управление системой</p>
                         </div>
+                        {activeTab === 'complaints' && (
+                            <Button
+                                onClick={handleExportClick}
+                                variant="outline"
+                                size="icon"
+                                className="rounded-full bg-white/50 backdrop-blur-md hover:bg-white border-white/50 shadow-sm"
+                                title="Экспорт в Excel"
+                            >
+                                <Download className="w-4 h-4" />
+                            </Button>
+                        )}
                         <Button
                             onClick={fetchData}
                             variant="outline"
@@ -652,13 +739,22 @@ export default function AdminDashboard() {
                                     </div>
                                     <div>
                                         <Label className="mb-2 block text-sm font-medium text-gray-700">Пароль</Label>
-                                        <Input
-                                            type="password"
-                                            placeholder="Пароль"
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                            className="bg-white/50 border-transparent focus:bg-white"
-                                        />
+                                        <div className="relative">
+                                            <Input
+                                                type={showPassword ? "text" : "password"}
+                                                placeholder="Пароль"
+                                                value={newPassword}
+                                                onChange={(e) => setNewPassword(e.target.value)}
+                                                className="bg-white/50 border-transparent focus:bg-white pr-10"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                            >
+                                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
                                     </div>
                                     <div>
                                         <Label className="mb-2 block text-sm font-medium text-gray-700">Роль</Label>
@@ -684,6 +780,10 @@ export default function AdminDashboard() {
                         </motion.div>
                     )}
 
+                </AnimatePresence>
+            </main>
+
+            <AnimatePresence>
                     {/* Complaint Details Modal */}
                     {selectedComplaint && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -855,8 +955,174 @@ export default function AdminDashboard() {
                         </div>
                     )}
 
+                    {/* Export Modal */}
+                    {isExportModalOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setIsExportModalOpen(false)}
+                                className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+                            />
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative z-10 overflow-hidden"
+                            >
+                                <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-green-100 text-green-600 rounded-xl">
+                                            <Download className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-gray-900">Экспорт отчета</h3>
+                                            <p className="text-sm text-gray-500">Настройте параметры экспорта</p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setIsExportModalOpen(false)}
+                                        className="rounded-full hover:bg-gray-200/50"
+                                    >
+                                        <X className="w-5 h-5 text-gray-500" />
+                                    </Button>
+                                </div>
+
+                                <div className="p-6 space-y-6">
+                                    {/* Date Range */}
+                                    <div className="space-y-3">
+                                        <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Период</Label>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <Label className="text-xs mb-1 block">С</Label>
+                                                <Input
+                                                    type="date"
+                                                    value={exportFilters.dateFrom}
+                                                    onChange={(e) => setExportFilters({ ...exportFilters, dateFrom: e.target.value })}
+                                                    className="bg-gray-50"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs mb-1 block">По</Label>
+                                                <Input
+                                                    type="date"
+                                                    value={exportFilters.dateTo}
+                                                    onChange={(e) => setExportFilters({ ...exportFilters, dateTo: e.target.value })}
+                                                    className="bg-gray-50"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Statuses */}
+                                    <div className="space-y-3">
+                                        <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Статусы</Label>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                onClick={() => setExportFilters({ ...exportFilters, statuses: [] })}
+                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${exportFilters.statuses.length === 0
+                                                    ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                    }`}
+                                            >
+                                                Все
+                                            </button>
+                                            {['New', 'In progress', 'Solved'].map((status) => {
+                                                const isSelected = exportFilters.statuses.includes(status);
+                                                return (
+                                                    <button
+                                                        key={status}
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                setExportFilters({
+                                                                    ...exportFilters,
+                                                                    statuses: exportFilters.statuses.filter(s => s !== status)
+                                                                });
+                                                            } else {
+                                                                setExportFilters({
+                                                                    ...exportFilters,
+                                                                    statuses: [...exportFilters.statuses, status]
+                                                                });
+                                                            }
+                                                        }}
+                                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${isSelected
+                                                            ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                            }`}
+                                                    >
+                                                        {status === 'New' ? 'Новое' : status === 'In progress' ? 'В работе' : 'Решено'}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Rating */}
+                                    <div className="space-y-3">
+                                        <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Оценка</Label>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <Label className="text-xs mb-1 block">От</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="1"
+                                                    max="5"
+                                                    placeholder="1"
+                                                    value={exportFilters.minRating}
+                                                    onChange={(e) => setExportFilters({ ...exportFilters, minRating: e.target.value })}
+                                                    className="bg-gray-50"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-xs mb-1 block">До</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="1"
+                                                    max="5"
+                                                    placeholder="5"
+                                                    value={exportFilters.maxRating}
+                                                    onChange={(e) => setExportFilters({ ...exportFilters, maxRating: e.target.value })}
+                                                    className="bg-gray-50"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setIsExportModalOpen(false)}
+                                        disabled={exportLoading}
+                                    >
+                                        Отмена
+                                    </Button>
+                                    <Button
+                                        onClick={performExport}
+                                        disabled={exportLoading}
+                                        className="bg-gradient-to-r from-green-600 to-green-700 text-white hover:shadow-lg hover:shadow-green-500/20"
+                                    >
+                                        {exportLoading ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                Экспорт...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Download className="w-4 h-4 mr-2" />
+                                                Скачать Excel
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+
                 </AnimatePresence>
-            </main>
         </div >
     );
 }
