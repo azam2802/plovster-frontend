@@ -33,7 +33,7 @@ interface Complaint {
     rating?: number;
     adminComment?: string;
     createdAt: string;
-    status: 'New' | 'In progress' | 'Solved';
+    status: 'New' | 'In progress' | 'Solved' | 'Rejected';
 }
 
 interface Branch {
@@ -63,6 +63,7 @@ export default function AdminDashboard() {
     const [analytics, setAnalytics] = useState({ total: 0, globalAvgRating: 0 });
     const [selectedBranch, setSelectedBranch] = useState<string>("all");
     const [sortOrder, setSortOrder] = useState<string>("date_desc");
+    const [selectedStatus, setSelectedStatus] = useState<string>("all");
 
     // Pagination
     const [page, setPage] = useState(1);
@@ -94,6 +95,13 @@ export default function AdminDashboard() {
         maxRating: ""
     });
 
+    const statuses = [
+        { id: 1, value: 'New', label: 'Новое' },
+        { id: 2, value: 'In progress', label: 'В работе' },
+        { id: 3, value: 'Solved', label: 'Решено' },
+        { id: 4, value: 'Rejected', label: 'Отказано' }
+    ];
+
     const handleExportClick = () => {
         setIsExportModalOpen(true);
     };
@@ -101,10 +109,10 @@ export default function AdminDashboard() {
     const performExport = async () => {
         setExportLoading(true);
         try {
-            const params: any = { limit: 10000 }; // Fetch all
+            const params: any = { limit: 10000 }; 
             // We fetch all and filter on client side to support complex filters not yet in backend
             if (selectedBranch !== "all") params.branch = selectedBranch;
-            
+
             const response = await api.get("/complaints", { params });
             let filteredComplaints = response.data.data;
 
@@ -137,17 +145,17 @@ export default function AdminDashboard() {
                 'Решение': c.solution || '-',
                 'Контакты': c.contact || '-',
                 'Оценка': c.rating || '-',
-                'Статус': c.status === 'Solved' ? 'Решено' : c.status === 'In progress' ? 'В работе' : 'Новое',
+                'Статус': c.status === 'Solved' ? 'Решено' : c.status === 'In progress' ? 'В работе' : c.status === 'Rejected' ? 'Отказано' : 'Новое',
                 'Комментарий админа': c.adminComment || '-'
             })));
 
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Complaints");
-            
+
             const now = new Date();
             const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
             XLSX.writeFile(workbook, `complaints_report_${timestamp}.xlsx`);
-            
+
             setIsExportModalOpen(false);
         } catch (error) {
             console.error("Export failed", error);
@@ -164,6 +172,7 @@ export default function AdminDashboard() {
             if (activeTab === 'complaints') {
                 if (selectedBranch !== "all") params.branch = selectedBranch;
                 if (sortOrder) params.sort = sortOrder;
+                if (selectedStatus !== "all") params.status = selectedStatus;
             }
 
             const [complaintsRes, branchesRes, analyticsRes] = await Promise.all([
@@ -201,7 +210,7 @@ export default function AdminDashboard() {
             return;
         }
         fetchData();
-    }, [activeTab, selectedBranch, sortOrder, page]);
+    }, [activeTab, selectedBranch, sortOrder, page, selectedStatus]);
 
     const handleLogout = () => {
         localStorage.removeItem("token");
@@ -493,6 +502,20 @@ export default function AdminDashboard() {
                                     </Select>
                                 </div>
                                 <div className="flex-1 min-w-[200px]">
+                                    <Label className="text-xs text-gray-500 mb-1.5 block uppercase tracking-wider font-semibold">Статус</Label>
+                                    <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                                        <SelectTrigger className="bg-white/50 border-transparent focus:bg-white h-10 rounded-xl">
+                                            <SelectValue placeholder="Все статусы" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-white border-transparent shadow-sm">
+                                            <SelectItem value="all">Все статусы</SelectItem>
+                                            {statuses.map(s => (
+                                                <SelectItem key={s.id} value={s.value}>{s.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="flex-1 min-w-[200px]">
                                     <Label className="text-xs text-gray-500 mb-1.5 block uppercase tracking-wider font-semibold">Сортировка</Label>
                                     <Select value={sortOrder} onValueChange={setSortOrder}>
                                         <SelectTrigger className="bg-white/50 border-transparent focus:bg-white h-10 rounded-xl">
@@ -560,9 +583,10 @@ export default function AdminDashboard() {
                                                     <td className="px-6 py-4 text-sm text-nowrap" >
                                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${c.status === 'Solved' ? 'bg-green-100 text-green-800' :
                                                             c.status === 'In progress' ? 'bg-yellow-100 text-yellow-800' :
-                                                                'bg-blue-100 text-blue-800'
+                                                                c.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                                                                    'bg-blue-100 text-blue-800'
                                                             }`}>
-                                                            {c.status === 'Solved' ? 'Решено' : c.status === 'In progress' ? 'В работе' : 'Новое'}
+                                                            {c.status === 'Solved' ? 'Решено' : c.status === 'In progress' ? 'В работе' : c.status === 'Rejected' ? 'Отказано' : 'Новое'}
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 text-sm">
@@ -762,7 +786,7 @@ export default function AdminDashboard() {
                                             <SelectTrigger className="bg-white/50 border-transparent focus:bg-white">
                                                 <SelectValue />
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent className="bg-white border-transparent shadow-sm">
                                                 <SelectItem value="manager">Менеджер</SelectItem>
                                                 <SelectItem value="admin">Администратор</SelectItem>
                                             </SelectContent>
@@ -784,345 +808,346 @@ export default function AdminDashboard() {
             </main>
 
             <AnimatePresence>
-                    {/* Complaint Details Modal */}
-                    {selectedComplaint && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                onClick={() => setSelectedComplaint(null)}
-                                className="absolute inset-0 bg-black/20 backdrop-blur-sm"
-                            />
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
-                            >
-                                <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-red-100 text-[#c3161c] rounded-xl">
-                                            <MessageSquare className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-lg font-bold text-gray-900">Подробности жалобы</h3>
-                                            <p className="text-sm text-gray-500">
-                                                {new Date(selectedComplaint.createdAt).toLocaleString()}
-                                            </p>
-                                        </div>
+                {/* Complaint Details Modal */}
+                {selectedComplaint && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setSelectedComplaint(null)}
+                            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl relative z-10 overflow-hidden max-h-[90vh] flex flex-col"
+                        >
+                            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-red-100 text-[#c3161c] rounded-xl">
+                                        <MessageSquare className="w-5 h-5" />
                                     </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => setSelectedComplaint(null)}
-                                        className="rounded-full hover:bg-gray-200/50"
-                                    >
-                                        <X className="w-5 h-5 text-gray-500" />
-                                    </Button>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900">Подробности жалобы</h3>
+                                        <p className="text-sm text-gray-500">
+                                            {new Date(selectedComplaint.createdAt).toLocaleString()}
+                                        </p>
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setSelectedComplaint(null)}
+                                    className="rounded-full hover:bg-gray-200/50"
+                                >
+                                    <X className="w-5 h-5 text-gray-500" />
+                                </Button>
+                            </div>
+
+                            <div className="p-6 overflow-y-auto space-y-6">
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">ФИО Клиента</Label>
+                                        <p className="font-medium text-gray-900 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                            {selectedComplaint.fullName}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">Филиал</Label>
+                                        <p className="font-medium text-gray-900 bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center gap-2">
+                                            <Building2 className="w-4 h-4 text-gray-400" />
+                                            {selectedComplaint.branch}
+                                        </p>
+                                    </div>
                                 </div>
 
-                                <div className="p-6 overflow-y-auto space-y-6">
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div>
-                                            <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">ФИО Клиента</Label>
-                                            <p className="font-medium text-gray-900 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                                                {selectedComplaint.fullName}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">Филиал</Label>
-                                            <p className="font-medium text-gray-900 bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center gap-2">
-                                                <Building2 className="w-4 h-4 text-gray-400" />
-                                                {selectedComplaint.branch}
-                                            </p>
-                                        </div>
+                                <div>
+                                    <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">Проблема</Label>
+                                    <div className="bg-red-50 p-4 rounded-xl border border-red-100 text-gray-800 whitespace-pre-wrap break-words">
+                                        {selectedComplaint.problem}
                                     </div>
+                                </div>
 
+                                <div>
+                                    <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">Предложенное решение</Label>
+                                    <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-gray-800 whitespace-pre-wrap break-words">
+                                        {selectedComplaint.solution || "Нет решения"}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
                                     <div>
-                                        <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">Проблема</Label>
-                                        <div className="bg-red-50 p-4 rounded-xl border border-red-100 text-gray-800 whitespace-pre-wrap break-words">
-                                            {selectedComplaint.problem}
-                                        </div>
+                                        <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">Контакты</Label>
+                                        <p className="font-medium text-gray-900 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                            {selectedComplaint.contact || "Не указаны"}
+                                        </p>
                                     </div>
-
                                     <div>
-                                        <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">Предложенное решение</Label>
-                                        <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-gray-800 whitespace-pre-wrap break-words">
-                                            {selectedComplaint.solution || "Нет решения"}
+                                        <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">Оценка обслуживания</Label>
+                                        <div className="font-medium text-gray-900 bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center gap-1">
+                                            {selectedComplaint.rating ? (
+                                                <>
+                                                    <span className="text-lg font-bold">{selectedComplaint.rating}</span>
+                                                    <div className="flex">
+                                                        {[...Array(5)].map((_, i) => (
+                                                            <span key={i} className={`text-sm ${i < (selectedComplaint.rating || 0) ? 'text-amber-400' : 'text-gray-300'}`}>★</span>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            ) : "Без оценки"}
                                         </div>
                                     </div>
+                                </div>
 
-                                    <div className="grid grid-cols-2 gap-6">
+                                {isAdmin && (
+                                    <div className="pt-4 border-t border-gray-100 space-y-4">
                                         <div>
-                                            <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">Контакты</Label>
-                                            <p className="font-medium text-gray-900 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                                                {selectedComplaint.contact || "Не указаны"}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">Оценка обслуживания</Label>
-                                            <div className="font-medium text-gray-900 bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center gap-1">
-                                                {selectedComplaint.rating ? (
-                                                    <>
-                                                        <span className="text-lg font-bold">{selectedComplaint.rating}</span>
-                                                        <div className="flex">
-                                                            {[...Array(5)].map((_, i) => (
-                                                                <span key={i} className={`text-sm ${i < (selectedComplaint.rating || 0) ? 'text-amber-400' : 'text-gray-300'}`}>★</span>
-                                                            ))}
+                                            <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 block">Изменить статус</Label>
+                                            <div className="flex gap-4 items-center">
+                                                <Select
+                                                    value={selectedComplaint.status}
+                                                    disabled={statusUpdating}
+                                                    onValueChange={async (val) => {
+                                                        setStatusUpdating(true);
+                                                        try {
+                                                            await api.patch(`/complaints/${selectedComplaint.id}`, { status: val });
+                                                            // Update local state
+                                                            setSelectedComplaint({ ...selectedComplaint, status: val as any });
+                                                            setComplaints(complaints.map(c => c.id === selectedComplaint.id ? { ...c, status: val as any } : c));
+                                                        } catch (e) {
+                                                            alert('Ошибка при обновлении статуса');
+                                                        } finally {
+                                                            setStatusUpdating(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="w-full sm:w-[200px] bg-white">
+                                                        <div className="flex items-center gap-2">
+                                                            {statusUpdating && <Loader2 className="h-3 w-3 animate-spin" />}
+                                                            <SelectValue />
                                                         </div>
-                                                    </>
-                                                ) : "Без оценки"}
+                                                    </SelectTrigger>
+                                                    <SelectContent className="bg-white border-transparent shadow-sm">
+                                                        <SelectItem value="New">Новое</SelectItem>
+                                                        <SelectItem value="In progress">В работе</SelectItem>
+                                                        <SelectItem value="Solved">Решено</SelectItem>
+                                                        <SelectItem value="Rejected">Отказано</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 block">Комментарий администратора</Label>
+                                            <div className="flex gap-2">
+                                                <Textarea
+                                                    placeholder="Введите комментарий..."
+                                                    value={selectedComplaint.adminComment || ""}
+                                                    onChange={(e) => setSelectedComplaint({ ...selectedComplaint, adminComment: e.target.value })}
+                                                    className="bg-white"
+                                                    disabled={commentSaving}
+                                                />
+                                                <Button
+                                                    disabled={commentSaving}
+                                                    onClick={async () => {
+                                                        setCommentSaving(true);
+                                                        try {
+                                                            await api.patch(`/complaints/${selectedComplaint.id}`, { adminComment: selectedComplaint.adminComment });
+                                                            setComplaints(complaints.map(c => c.id === selectedComplaint.id ? { ...c, adminComment: selectedComplaint.adminComment } : c));
+                                                        } catch (e) {
+                                                            alert('Ошибка при сохранении комментария');
+                                                        } finally {
+                                                            setCommentSaving(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    {commentSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                                </Button>
                                             </div>
                                         </div>
                                     </div>
+                                )}
+                            </div>
 
-                                    {isAdmin && (
-                                        <div className="pt-4 border-t border-gray-100 space-y-4">
-                                            <div>
-                                                <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 block">Изменить статус</Label>
-                                                <div className="flex gap-4 items-center">
-                                                    <Select
-                                                        value={selectedComplaint.status}
-                                                        disabled={statusUpdating}
-                                                        onValueChange={async (val) => {
-                                                            setStatusUpdating(true);
-                                                            try {
-                                                                await api.patch(`/complaints/${selectedComplaint.id}`, { status: val });
-                                                                // Update local state
-                                                                setSelectedComplaint({ ...selectedComplaint, status: val as any });
-                                                                setComplaints(complaints.map(c => c.id === selectedComplaint.id ? { ...c, status: val as any } : c));
-                                                            } catch (e) {
-                                                                alert('Ошибка при обновлении статуса');
-                                                            } finally {
-                                                                setStatusUpdating(false);
-                                                            }
-                                                        }}
-                                                    >
-                                                        <SelectTrigger className="w-full sm:w-[200px] bg-white">
-                                                            <div className="flex items-center gap-2">
-                                                                {statusUpdating && <Loader2 className="h-3 w-3 animate-spin" />}
-                                                                <SelectValue />
-                                                            </div>
-                                                        </SelectTrigger>
-                                                        <SelectContent className="bg-white border-transparent shadow-sm">
-                                                            <SelectItem value="New">Новое</SelectItem>
-                                                            <SelectItem value="In progress">В работе</SelectItem>
-                                                            <SelectItem value="Solved">Решено</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </div>
+                            <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+                                <Button onClick={() => setSelectedComplaint(null)}>
+                                    Закрыть
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
 
-                                            <div>
-                                                <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 block">Комментарий администратора</Label>
-                                                <div className="flex gap-2">
-                                                    <Textarea
-                                                        placeholder="Введите комментарий..."
-                                                        value={selectedComplaint.adminComment || ""}
-                                                        onChange={(e) => setSelectedComplaint({ ...selectedComplaint, adminComment: e.target.value })}
-                                                        className="bg-white"
-                                                        disabled={commentSaving}
-                                                    />
-                                                    <Button
-                                                        disabled={commentSaving}
-                                                        onClick={async () => {
-                                                            setCommentSaving(true);
-                                                            try {
-                                                                await api.patch(`/complaints/${selectedComplaint.id}`, { adminComment: selectedComplaint.adminComment });
-                                                                setComplaints(complaints.map(c => c.id === selectedComplaint.id ? { ...c, adminComment: selectedComplaint.adminComment } : c));
-                                                            } catch (e) {
-                                                                alert('Ошибка при сохранении комментария');
-                                                            } finally {
-                                                                setCommentSaving(false);
-                                                            }
-                                                        }}
-                                                    >
-                                                        {commentSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
+                {/* Export Modal */}
+                {isExportModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsExportModalOpen(false)}
+                            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative z-10 overflow-hidden"
+                        >
+                            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-green-100 text-green-600 rounded-xl">
+                                        <Download className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900">Экспорт отчета</h3>
+                                        <p className="text-sm text-gray-500">Настройте параметры экспорта</p>
+                                    </div>
                                 </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setIsExportModalOpen(false)}
+                                    className="rounded-full hover:bg-gray-200/50"
+                                >
+                                    <X className="w-5 h-5 text-gray-500" />
+                                </Button>
+                            </div>
 
-                                <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
-                                    <Button onClick={() => setSelectedComplaint(null)}>
-                                        Закрыть
-                                    </Button>
-                                </div>
-                            </motion.div>
-                        </div>
-                    )}
-
-                    {/* Export Modal */}
-                    {isExportModalOpen && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                onClick={() => setIsExportModalOpen(false)}
-                                className="absolute inset-0 bg-black/20 backdrop-blur-sm"
-                            />
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative z-10 overflow-hidden"
-                            >
-                                <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-green-100 text-green-600 rounded-xl">
-                                            <Download className="w-5 h-5" />
+                            <div className="p-6 space-y-6">
+                                {/* Date Range */}
+                                <div className="space-y-3">
+                                    <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Период</Label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label className="text-xs mb-1 block">С</Label>
+                                            <Input
+                                                type="date"
+                                                value={exportFilters.dateFrom}
+                                                onChange={(e) => setExportFilters({ ...exportFilters, dateFrom: e.target.value })}
+                                                className="bg-gray-50"
+                                            />
                                         </div>
                                         <div>
-                                            <h3 className="text-lg font-bold text-gray-900">Экспорт отчета</h3>
-                                            <p className="text-sm text-gray-500">Настройте параметры экспорта</p>
-                                        </div>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => setIsExportModalOpen(false)}
-                                        className="rounded-full hover:bg-gray-200/50"
-                                    >
-                                        <X className="w-5 h-5 text-gray-500" />
-                                    </Button>
-                                </div>
-
-                                <div className="p-6 space-y-6">
-                                    {/* Date Range */}
-                                    <div className="space-y-3">
-                                        <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Период</Label>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <Label className="text-xs mb-1 block">С</Label>
-                                                <Input
-                                                    type="date"
-                                                    value={exportFilters.dateFrom}
-                                                    onChange={(e) => setExportFilters({ ...exportFilters, dateFrom: e.target.value })}
-                                                    className="bg-gray-50"
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label className="text-xs mb-1 block">По</Label>
-                                                <Input
-                                                    type="date"
-                                                    value={exportFilters.dateTo}
-                                                    onChange={(e) => setExportFilters({ ...exportFilters, dateTo: e.target.value })}
-                                                    className="bg-gray-50"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Statuses */}
-                                    <div className="space-y-3">
-                                        <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Статусы</Label>
-                                        <div className="flex flex-wrap gap-2">
-                                            <button
-                                                onClick={() => setExportFilters({ ...exportFilters, statuses: [] })}
-                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${exportFilters.statuses.length === 0
-                                                    ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                                                    }`}
-                                            >
-                                                Все
-                                            </button>
-                                            {['New', 'In progress', 'Solved'].map((status) => {
-                                                const isSelected = exportFilters.statuses.includes(status);
-                                                return (
-                                                    <button
-                                                        key={status}
-                                                        onClick={() => {
-                                                            if (isSelected) {
-                                                                setExportFilters({
-                                                                    ...exportFilters,
-                                                                    statuses: exportFilters.statuses.filter(s => s !== status)
-                                                                });
-                                                            } else {
-                                                                setExportFilters({
-                                                                    ...exportFilters,
-                                                                    statuses: [...exportFilters.statuses, status]
-                                                                });
-                                                            }
-                                                        }}
-                                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${isSelected
-                                                            ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                                                            }`}
-                                                    >
-                                                        {status === 'New' ? 'Новое' : status === 'In progress' ? 'В работе' : 'Решено'}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    {/* Rating */}
-                                    <div className="space-y-3">
-                                        <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Оценка</Label>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <Label className="text-xs mb-1 block">От</Label>
-                                                <Input
-                                                    type="number"
-                                                    min="1"
-                                                    max="5"
-                                                    placeholder="1"
-                                                    value={exportFilters.minRating}
-                                                    onChange={(e) => setExportFilters({ ...exportFilters, minRating: e.target.value })}
-                                                    className="bg-gray-50"
-                                                />
-                                            </div>
-                                            <div>
-                                                <Label className="text-xs mb-1 block">До</Label>
-                                                <Input
-                                                    type="number"
-                                                    min="1"
-                                                    max="5"
-                                                    placeholder="5"
-                                                    value={exportFilters.maxRating}
-                                                    onChange={(e) => setExportFilters({ ...exportFilters, maxRating: e.target.value })}
-                                                    className="bg-gray-50"
-                                                />
-                                            </div>
+                                            <Label className="text-xs mb-1 block">По</Label>
+                                            <Input
+                                                type="date"
+                                                value={exportFilters.dateTo}
+                                                onChange={(e) => setExportFilters({ ...exportFilters, dateTo: e.target.value })}
+                                                className="bg-gray-50"
+                                            />
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => setIsExportModalOpen(false)}
-                                        disabled={exportLoading}
-                                    >
-                                        Отмена
-                                    </Button>
-                                    <Button
-                                        onClick={performExport}
-                                        disabled={exportLoading}
-                                        className="bg-gradient-to-r from-green-600 to-green-700 text-white hover:shadow-lg hover:shadow-green-500/20"
-                                    >
-                                        {exportLoading ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                Экспорт...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Download className="w-4 h-4 mr-2" />
-                                                Скачать Excel
-                                            </>
-                                        )}
-                                    </Button>
+                                {/* Statuses */}
+                                <div className="space-y-3">
+                                    <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Статусы</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => setExportFilters({ ...exportFilters, statuses: [] })}
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${exportFilters.statuses.length === 0
+                                                ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                }`}
+                                        >
+                                            Все
+                                        </button>
+                                        {['New', 'In progress', 'Solved', 'Rejected'].map((status) => {
+                                            const isSelected = exportFilters.statuses.includes(status);
+                                            return (
+                                                <button
+                                                    key={status}
+                                                    onClick={() => {
+                                                        if (isSelected) {
+                                                            setExportFilters({
+                                                                ...exportFilters,
+                                                                statuses: exportFilters.statuses.filter(s => s !== status)
+                                                            });
+                                                        } else {
+                                                            setExportFilters({
+                                                                ...exportFilters,
+                                                                statuses: [...exportFilters.statuses, status]
+                                                            });
+                                                        }
+                                                    }}
+                                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${isSelected
+                                                        ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                        }`}
+                                                >
+                                                    {status === 'New' ? 'Новое' : status === 'In progress' ? 'В работе' : status === 'Rejected' ? 'Отказано' : 'Решено'}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </motion.div>
-                        </div>
-                    )}
 
-                </AnimatePresence>
+                                {/* Rating */}
+                                <div className="space-y-3">
+                                    <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Оценка</Label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label className="text-xs mb-1 block">От</Label>
+                                            <Input
+                                                type="number"
+                                                min="1"
+                                                max="5"
+                                                placeholder="1"
+                                                value={exportFilters.minRating}
+                                                onChange={(e) => setExportFilters({ ...exportFilters, minRating: e.target.value })}
+                                                className="bg-gray-50"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-xs mb-1 block">До</Label>
+                                            <Input
+                                                type="number"
+                                                min="1"
+                                                max="5"
+                                                placeholder="5"
+                                                value={exportFilters.maxRating}
+                                                onChange={(e) => setExportFilters({ ...exportFilters, maxRating: e.target.value })}
+                                                className="bg-gray-50"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setIsExportModalOpen(false)}
+                                    disabled={exportLoading}
+                                >
+                                    Отмена
+                                </Button>
+                                <Button
+                                    onClick={performExport}
+                                    disabled={exportLoading}
+                                    className="bg-gradient-to-r from-green-600 to-green-700 text-white hover:shadow-lg hover:shadow-green-500/20"
+                                >
+                                    {exportLoading ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            Экспорт...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Download className="w-4 h-4 mr-2" />
+                                            Скачать Excel
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+            </AnimatePresence>
         </div >
     );
 }
