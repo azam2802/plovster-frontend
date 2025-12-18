@@ -209,9 +209,9 @@ export default function ComplaintWizard() {
     }
 
     return (
-        <div className="w-full max-w-[1000px] mx-auto p-4">
+        <div className="w-full max-w-[1000px] mx-auto p-0 md:p-4">
             {/* Step Indicators */}
-            <div className="mb-4 px-8 py-6 ">
+            <div className="mb-4 px-4 py-4 md:px-8 md:py-6">
                 <div className="flex items-center justify-between relative">
                     {/* Progress Line Background */}
                     <div className="absolute top-6 left-0 right-0 h-1 bg-gray-200 rounded-full mx-12" />
@@ -278,7 +278,7 @@ export default function ComplaintWizard() {
                 <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-gradient-to-br from-blue-400/20 to-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
 
                 {/* Header */}
-                <div className="relative px-8  pb-6 border-b border-gray-100/50">
+                <div className="relative px-4 pb-4 md:px-8 md:pb-6 border-b border-gray-100/50">
                     <div className="flex flex-col text-center items-center gap-3">
                         <div>
                             <h2 className="text-xl font-bold text-gray-900">{stepInfo[step - 1].title}</h2>
@@ -288,7 +288,7 @@ export default function ComplaintWizard() {
                 </div>
 
                 {/* Form Content */}
-                <div className="relative px-8 py-6 min-h-[280px]">
+                <div className="relative px-4 py-4 md:px-8 md:py-6 min-h-[280px]">
                     <form onSubmit={handleSubmit(onSubmit)}>
                         <AnimatePresence mode="wait">
                             {step === 1 && (
@@ -498,7 +498,7 @@ export default function ComplaintWizard() {
                         </AnimatePresence>
 
                         {/* Navigation Buttons */}
-                        <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-100/80">
+                        <div className="flex items-center justify-between mt-6 pt-4 md:mt-8 md:pt-6 border-t border-gray-100/80">
                             <motion.div
                                 initial={false}
                                 animate={{ opacity: step > 1 ? 1 : 0, x: step > 1 ? 0 : -10 }}

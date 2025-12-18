@@ -11,7 +11,7 @@ export default function Home() {
   return (
     <>
       <AnimatedBackground />
-      <main className="min-h-screen flex flex-col items-center justify-center p-4 relative z-10">
+      <main className="min-h-screen flex flex-col items-center justify-center p-2 md:p-4 relative z-10">
         {/* Admin Link (Top Right) */}
         <div className="absolute top-4 right-4">
           <Link href="/admin">
@@ -63,7 +63,7 @@ export default function Home() {
           <div className="absolute -inset-1 bg-gradient-to-r from-[#8ed7f7]/30 via-[#c3161c]/20 to-[#fdcf9d]/30 rounded-[2.5rem] blur-xl opacity-60" />
 
           {/* Card container */}
-          <div className="relative bg-white/60 backdrop-blur-xl rounded-[2rem] shadow-2xl shadow-black/5 border border-white/60 overflow-hidden">
+          <div className="relative bg-white/60 backdrop-blur-xl rounded-2xl md:rounded-[2rem] shadow-2xl shadow-black/5 border border-white/60 overflow-hidden">
             <ComplaintWizard />
           </div>
         </div>
