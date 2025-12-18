@@ -13,9 +13,9 @@ export default function Home() {
       <AnimatedBackground />
       <main className="min-h-screen flex flex-col items-center justify-center p-2 md:p-4 relative z-10">
         {/* Admin Link (Top Right) */}
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-2 right-2 z-50">
           <Link href="/admin">
-            <Button variant="ghost" size="icon" className="rounded-full bg-white/20 backdrop-blur-md hover:bg-white/40 text-gray-700">
+            <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/40 text-gray-700">
               <ShieldAlert className="w-5 h-5" />
             </Button>
           </Link>
