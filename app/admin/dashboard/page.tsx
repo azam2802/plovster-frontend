@@ -847,7 +847,7 @@ export default function AdminDashboard() {
                             </div>
 
                             <div className="p-6 overflow-y-auto space-y-6">
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">ФИО Клиента</Label>
                                         <p className="font-medium text-gray-900 bg-gray-50 p-3 rounded-xl border border-gray-100">
@@ -877,7 +877,7 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <Label className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1 block">Контакты</Label>
                                         <p className="font-medium text-gray-900 bg-gray-50 p-3 rounded-xl border border-gray-100">
