@@ -19,7 +19,7 @@ import {
     MessageSquare, User as UserIcon,
     Eye, X, Menu, Save, Download, EyeOff
 } from "lucide-react";
-import AnimatedBackground from "@/components/ui/AnimatedBackground";
+import Background from "@/components/ui/Background";
 import { Textarea } from "@/components/ui/textarea";
 import * as XLSX from 'xlsx';
 
@@ -274,7 +274,7 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-gray-50/50 flex">
-            <AnimatedBackground />
+            <Background />
 
             {/* Sidebar */}
             <aside className="w-64 bg-white/80 backdrop-blur-xl border-r border-white/50 hidden md:flex flex-col fixed h-full z-20">

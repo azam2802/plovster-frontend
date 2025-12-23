@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, ShieldCheck, Lock, User, Eye, EyeOff } from "lucide-react";
-import AnimatedBackground from "@/components/ui/AnimatedBackground";
+import Background from "@/components/ui/Background";
 
 export default function AdminLogin() {
     const router = useRouter();
@@ -40,7 +40,7 @@ export default function AdminLogin() {
 
     return (
         <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
-            <AnimatedBackground />
+            <Background />
 
             <div className="relative z-10 w-full max-w-md p-4">
                 <motion.div

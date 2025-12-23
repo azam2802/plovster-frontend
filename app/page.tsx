@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import ComplaintWizard from "@/components/forms/ComplaintWizard";
-import AnimatedBackground from "@/components/ui/AnimatedBackground";
+import AnimatedBackground from "@/components/ui/Background";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert } from "lucide-react";
 
